@@ -39,6 +39,19 @@ def send_otp_email(to_email, otp):
         print(f"Failed to send email: {e}")
         return False
 
+def generate_with_fallback(prompt):
+    models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-1.5-flash']
+    last_err = None
+    for m in models:
+        try:
+            model = genai.GenerativeModel(m)
+            return model.generate_content(prompt)
+        except Exception as e:
+            last_err = e
+            if "429" not in str(e) and "Quota" not in str(e):
+                raise e
+    raise last_err
+
 SYSTEM_PROMPT = """You are an expert HR Screener for Sen & Ray Chartered Accountants.
 Analyze the provided CV against the target role. 
 Output strictly in JSON format matching exactly this structure:
@@ -156,10 +169,9 @@ def analyze_cv():
         return jsonify({"error": "Could not extract text from the file. It might be an image-based PDF."}), 400
 
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash-lite')
         prompt = f"{SYSTEM_PROMPT}\n\n--- TARGET ROLE ---\n{target_role}\n\n--- RESUME/CV ---\n{cv_text}\n"
         
-        response = model.generate_content(prompt)
+        response = generate_with_fallback(prompt)
         analysis = response.text
         
         import json
@@ -198,8 +210,7 @@ def start_interview():
 
     try:
         prompt = f"Based on this target role: {sub['target_role']} and CV:\n{sub['cv_text']}\nGenerate exactly 10 tough interview questions relevant to their domain to give them a reality check. Do NOT ask anything beyond their field. Return ONLY the 10 questions separated by newlines, with no markdown formatting."
-        model = genai.GenerativeModel('gemini-2.5-flash-lite')
-        resp = model.generate_content(prompt)
+        resp = generate_with_fallback(prompt)
         questions = [q.strip() for q in resp.text.split('\n') if q.strip() and len(q)>5]
         return jsonify({"questions": questions[:10]})
     except Exception as e:
@@ -251,8 +262,7 @@ Format Requirement:
 
 (Repeat for all 10 questions)
 """
-        model = genai.GenerativeModel('gemini-2.5-flash-lite')
-        resp = model.generate_content(prompt)
+        resp = generate_with_fallback(prompt)
         
         score = 0
         import re
