@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Host Dashboard | Sen & Ray</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body class="bg-gray">
+    <nav class="navbar">
+        <div class="nav-brand">SEN & RAY <span>Host Dashboard</span></div>
+        <div class="nav-user">
+            <span>{{ email }}</span>
+            <a href="/logout" class="btn-outline-sm">Logout</a>
+        </div>
+    </nav>
+
+    <div class="dashboard-container max-w-full">
+        <header class="dash-header">
+            <h2>Candidate Pipeline</h2>
+            <p>Review AI-screened candidate submissions.</p>
+        </header>
+
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Candidate Email</th>
+                        <th>Target Role</th>
+                        <th>CV Match Score</th>
+                        <th>Interview Score</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sub in submissions %}
+                    <tr>
+                        <td>{{ sub.timestamp.split(' ')[0] }}</td>
+                        <td>{{ sub.candidate_email }}</td>
+                        <td><span class="badge">{{ sub.target_role }}</span></td>
+                        <td>
+                            <div class="score-pill {% if sub.score >= 80 %}high{% elif sub.score >= 50 %}med{% else %}low{% endif %}">
+                                {{ sub.score }}%
+                            </div>
+                        </td>
+                        <td>
+                            {% if sub.interview_completed %}
+                            <div class="score-pill {% if sub.interview_score >= 80 %}high{% elif sub.interview_score >= 50 %}med{% else %}low{% endif %}" title="{{ sub.cheating_flags }}">
+                                {{ sub.interview_score }}/100
+                            </div>
+                            {% if 'Tab switches: 0' not in sub.cheating_flags %}
+                                <span style="color:red; font-size:0.8rem;">⚠️ Flags</span>
+                            {% endif %}
+                            {% else %}
+                            <span style="color:gray; font-size:0.8rem;">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn-link" onclick="showDetails('{{ sub.id }}')">CV Report</button>
+                            {% if sub.interview_completed %}
+                            | <button class="btn-link" onclick="showTranscript('{{ sub.id }}')">Interview</button>
+                            <!-- Hidden Transcript Data -->
+                            <div id="transcript-{{ sub.id }}" class="hidden raw-markdown">
+                                <h3>Anti-Cheat Log: {{ sub.cheating_flags }}</h3>
+                                {% if sub.video_path %}
+                                <div style="margin-top: 1rem; margin-bottom: 1rem;">
+                                    <video controls style="width: 100%; max-height: 400px; border-radius: 8px; border: 1px solid var(--border);">
+                                        <source src="{{ sub.video_path }}" type="video/webm">
+                                        Your browser does not support the video tag.
+                                    </video>
+                                </div>
+                                {% endif %}
+                                <hr><br>
+                                {{ sub.interview_transcript | replace('\n', '<br>') | safe }}
+                            </div>
+                            {% endif %}
+                            <!-- Hidden CV Data -->
+                            <div id="report-{{ sub.id }}" class="hidden raw-markdown">{{ sub.analysis_result }}</div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align:center; padding: 2rem; color: #666;">No candidates have applied yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="reportModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>AI Analysis Report</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div id="modalBody" class="modal-body markdown-output"></div>
+        </div>
+    </div>
+
+    <script>
+        const modal = document.getElementById('reportModal');
+        const closeBtn = document.querySelector('.close-modal');
+        const modalBody = document.getElementById('modalBody');
+
+        function showDetails(id) {
+            const raw = document.getElementById('report-' + id).textContent;
+            try {
+                const data = JSON.parse(raw);
+                let html = `
+                    <h3 style="color:var(--brand-blue); margin-bottom:1rem;">Overview</h3>
+                    <p><strong>Match Score:</strong> ${data.match_score}%</p>
+                    <p><strong>Recommendation:</strong> ${data.recommendation}</p>
+                    
+                    <h3 style="color:white; margin-top:1.5rem; margin-bottom:0.5rem;">Key Strengths</h3>
+                    <ul style="margin-left:1.5rem; color:#cbd5e1;">${data.key_strengths.map(s => `<li>${s}</li>`).join('')}</ul>
+                    
+                    <h3 style="color:#ef4444; margin-top:1.5rem; margin-bottom:0.5rem;">Gap Analysis</h3>
+                    <ul style="margin-left:1.5rem; color:#cbd5e1;">${data.gap_analysis.map(s => `<li>${s}</li>`).join('')}</ul>
+                    
+                    <h3 style="color:#eab308; margin-top:1.5rem; margin-bottom:0.5rem;">Scope for Improvement</h3>
+                    <ul style="margin-left:1.5rem; color:#cbd5e1;">${data.scope_for_improvement.map(s => `<li>${s}</li>`).join('')}</ul>
+                    
+                    <h3 style="color:white; margin-top:1.5rem; margin-bottom:0.5rem;">Job Scope Prediction</h3>
+                    <p style="color:#cbd5e1;">${data.job_scope_prediction}</p>
+                    
+                    <h3 style="color:white; margin-top:1.5rem; margin-bottom:0.5rem;">Industry News</h3>
+                    <ul style="margin-left:1.5rem; color:#cbd5e1;">${data.latest_industry_news.map(s => `<li>${s}</li>`).join('')}</ul>
+                `;
+                modalBody.innerHTML = html;
+            } catch(e) {
+                // Fallback for older markdown submissions
+                modalBody.innerHTML = marked.parse(raw);
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function showTranscript(id) {
+            const html = document.getElementById('transcript-' + id).innerHTML;
+            modalBody.innerHTML = html;
+            modal.classList.remove('hidden');
+        }
+
+        closeBtn.onclick = () => modal.classList.add('hidden');
+        window.onclick = (e) => {
+            if(e.target == modal) modal.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

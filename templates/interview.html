@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proctored AI Interview | Sen & Ray</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .interview-layout { display: grid; grid-template-columns: 300px 1fr; gap: 2rem; height: calc(100vh - 120px); }
+        .proctor-sidebar { background: rgba(0,0,0,0.5); border: 1px solid var(--border); color: white; padding: 1.5rem; border-radius: 12px; display: flex; flex-direction: column; gap: 1rem; }
+        .video-container { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 8px; overflow: hidden; position: relative; border: 1px solid var(--border); }
+        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        .status-dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; display: inline-block; animation: pulse 2s infinite; }
+        .warning-box { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; padding: 1rem; border-radius: 8px; display: none; }
+        
+        /* Chat UI */
+        .interview-main { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+        .chat-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.3); font-weight: 600; color: white; }
+        
+        .chat-feed { flex-grow: 1; padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.5rem; }
+        
+        .chat-bubble { max-width: 80%; padding: 1rem 1.5rem; border-radius: 12px; line-height: 1.5; font-size: 0.95rem; }
+        .chat-ai { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: #e2e8f0; align-self: flex-start; border-bottom-left-radius: 4px; box-shadow: 0 4px 20px rgba(59, 130, 246, 0.05); }
+        .chat-user { background: rgba(255, 255, 255, 0.1); border: 1px solid var(--border); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+        
+        .voice-controls { padding: 1.5rem; border-top: 1px solid var(--border); background: rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 1rem; }
+        .input-bar { display: flex; gap: 1rem; }
+        
+        .transcript-area { flex-grow: 1; height: 50px; padding: 1rem; border: 1px solid var(--border); border-radius: 25px; resize: none; background: rgba(255,255,255,0.05); color: white; outline: none; transition: border 0.2s; }
+        .transcript-area:focus { border-color: var(--brand-blue); box-shadow: 0 0 10px rgba(59, 130, 246, 0.2); }
+        
+        .btn-record { background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: 50%; width: 50px; height: 50px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: white; transition: all 0.2s; }
+        .btn-record:hover { background: rgba(239, 68, 68, 0.3); }
+        .btn-record.recording { background: #ef4444; animation: pulseRecord 1.5s infinite; }
+        
+        .btn-send { background: var(--brand-blue); border: none; border-radius: 50%; width: 50px; height: 50px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: white; font-weight: bold; box-shadow: 0 0 10px var(--brand-glow); }
+        .btn-send:hover { transform: scale(1.05); }
+
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); } }
+        @keyframes pulseRecord { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } }
+    </style>
+</head>
+<body class="bg-gray">
+    <nav class="navbar">
+        <div class="nav-brand">SEN & RAY <span>Proctored Environment</span></div>
+    </nav>
+
+    <div class="dashboard-container max-w-full">
+        <div class="interview-layout" id="preInterview">
+            <div class="dash-card" style="grid-column: 1 / -1; text-align: center;">
+                <h2 style="color:white; margin-bottom:1rem;">Welcome to your AI Interview</h2>
+                <p>This session is proctored. You must enable your camera and microphone. Do not switch tabs or leave the screen.</p>
+                <button class="btn-dark" id="initBtn" style="margin-top:2rem; width:auto; padding: 1rem 3rem;">I Agree - Start Camera & Mic</button>
+            </div>
+        </div>
+
+        <div class="interview-layout hidden" id="interviewUI">
+            <div class="proctor-sidebar">
+                <div class="video-container">
+                    <video id="userVideo" autoplay muted playsinline></video>
+                </div>
+                <div>
+                    <h3 style="font-size:1rem; color:white;"><span class="status-dot"></span> Live Proctoring Active</h3>
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.5rem;">Camera, Audio, and Screen focus are being monitored.</p>
+                </div>
+                <div class="warning-box" id="warningBox">
+                    <strong>Warning!</strong> Tab switch detected. This has been logged.
+                </div>
+            </div>
+
+            <div class="interview-main">
+                <div class="chat-header">
+                    AI Interviewer (Question <span id="qNum">1</span> of 10)
+                </div>
+                
+                <div class="chat-feed" id="chatFeed">
+                    <!-- Chat bubbles will go here -->
+                </div>
+
+                <div class="voice-controls hidden" id="controlsPanel">
+                    <div class="input-bar">
+                        <button class="btn-record" id="recordBtn" title="Hold to speak">🎙️</button>
+                        <textarea class="transcript-area" id="transcript" placeholder="Speak, or type your answer here..."></textarea>
+                        <button class="btn-send" id="nextBtn" title="Send Answer">&rarr;</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUBMISSION_ID = new URLSearchParams(window.location.search).get('id');
+        let questions = [];
+        let currentQIndex = 0;
+        let answers = [];
+        let cheatFlags = 0;
+        
+        let recognition;
+        let mediaRecorder;
+        let recordedChunks = [];
+
+        const initBtn = document.getElementById('initBtn');
+        const preInterview = document.getElementById('preInterview');
+        const interviewUI = document.getElementById('interviewUI');
+        const userVideo = document.getElementById('userVideo');
+        const chatFeed = document.getElementById('chatFeed');
+        const qNum = document.getElementById('qNum');
+        const recordBtn = document.getElementById('recordBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const transcript = document.getElementById('transcript');
+        const warningBox = document.getElementById('warningBox');
+        const controlsPanel = document.getElementById('controlsPanel');
+
+        function appendChat(text, type) {
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble chat-${type}`;
+            bubble.innerText = text;
+            chatFeed.appendChild(bubble);
+            chatFeed.scrollTop = chatFeed.scrollHeight;
+        }
+
+        function speakQuestion(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.0;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        initBtn.onclick = async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                userVideo.srcObject = stream;
+                
+                // Start Recording silently
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8,opus' });
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) recordedChunks.push(e.data);
+                };
+                mediaRecorder.start();
+
+                preInterview.classList.add('hidden');
+                interviewUI.classList.remove('hidden');
+
+                appendChat("Initializing AI Engine and generating your specific domain questions...", "ai");
+
+                document.addEventListener("visibilitychange", () => {
+                    if (document.hidden) {
+                        cheatFlags++;
+                        warningBox.style.display = 'block';
+                        setTimeout(() => warningBox.style.display = 'none', 5000);
+                    }
+                });
+
+                const res = await fetch('/api/interview/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({submission_id: SUBMISSION_ID})
+                });
+                const data = await res.json();
+                
+                chatFeed.innerHTML = ""; // clear loading message
+                
+                if (data.questions) {
+                    questions = data.questions;
+                    showQuestion();
+                } else {
+                    alert("Error loading questions: " + (data.error || "Unknown error"));
+                }
+
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (SpeechRecognition) {
+                    recognition = new SpeechRecognition();
+                    recognition.continuous = true;
+                    recognition.interimResults = true;
+                    
+                    recognition.onresult = (event) => {
+                        let final_transcript = '';
+                        for (let i = event.resultIndex; i < event.results.length; ++i) {
+                            if (event.results[i].isFinal) {
+                                final_transcript += event.results[i][0].transcript;
+                            }
+                        }
+                        if (final_transcript) {
+                            transcript.value += final_transcript + ' ';
+                        }
+                    };
+                } else {
+                    transcript.placeholder = "Voice recognition not supported. Type your answer...";
+                }
+
+                controlsPanel.classList.remove('hidden');
+
+            } catch (err) {
+                alert("Camera and Microphone permissions are required for the proctored interview.");
+            }
+        };
+
+        function showQuestion() {
+            qNum.innerText = currentQIndex + 1;
+            const q = questions[currentQIndex];
+            appendChat(q, "ai");
+            transcript.value = '';
+            speakQuestion(q);
+        }
+
+        recordBtn.onmousedown = () => {
+            if (recognition) {
+                recognition.start();
+                recordBtn.classList.add('recording');
+            }
+        };
+        recordBtn.onmouseup = () => {
+            if (recognition) {
+                recognition.stop();
+                recordBtn.classList.remove('recording');
+            }
+        };
+
+        nextBtn.onclick = async () => {
+            window.speechSynthesis.cancel(); 
+            const ans = transcript.value.trim() || "[No Answer Provided]";
+            appendChat(ans, "user");
+            
+            answers.push({
+                question: questions[currentQIndex],
+                answer: ans
+            });
+
+            currentQIndex++;
+            controlsPanel.classList.add('hidden'); // Hide controls momentarily
+
+            if (currentQIndex < questions.length) {
+                setTimeout(() => {
+                    showQuestion();
+                    controlsPanel.classList.remove('hidden');
+                }, 1000);
+            } else {
+                appendChat("Interview Complete! Processing video and submitting for AI evaluation...", "ai");
+                
+                // Stop recording and send data
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const formData = new FormData();
+                    formData.append('submission_id', SUBMISSION_ID);
+                    formData.append('qa_pairs', JSON.stringify(answers));
+                    formData.append('cheating_flags', `Tab switches: ${cheatFlags}`);
+                    formData.append('video', blob, `interview.webm`);
+
+                    await fetch('/api/interview/submit', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    chatFeed.innerHTML += `<div class="chat-bubble chat-ai" style="margin-top:2rem; font-weight:bold; color:#4ade80;">Evaluation Complete! The Host has been notified. You may now close this window.</div>`;
+                    document.querySelector('.chat-header').innerText = "Interview Finished";
+                };
+                
+                // Stopping the tracks stops the camera, which triggers mediaRecorder.onstop
+                const tracks = userVideo.srcObject.getTracks();
+                tracks.forEach(track => track.stop());
+                mediaRecorder.stop();
+            }
+        };
+    </script>
+</body>
+</html>

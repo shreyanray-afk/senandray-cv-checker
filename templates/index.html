@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sen & Ray | CV Checker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="logo-wrapper">
+            <img src="/static/logo.png" alt="Sen & Ray Logo" class="sen-image-logo">
+            <span class="separator" style="margin-left: 15px;">|</span>
+            <span class="app-name">CV CHECKER</span>
+        </div>
+
+        <h1 class="welcome-title">Welcome</h1>
+        <p class="welcome-subtitle">Before we begin, please let us know your affiliation with Sen & Ray.</p>
+
+        <form action="/auth" method="POST" id="roleForm">
+            <div class="role-selector">
+                <label class="role-card">
+                    <input type="radio" name="role" value="employee" required>
+                    <div class="card-content">
+                        <div class="card-icon">🛡️</div>
+                        <div class="card-text">
+                            <h3>Yes, I am an employee</h3>
+                            <p>Access host dashboard to review candidates</p>
+                        </div>
+                    </div>
+                </label>
+
+                <label class="role-card">
+                    <input type="radio" name="role" value="candidate" required>
+                    <div class="card-content">
+                        <div class="card-icon">👥</div>
+                        <div class="card-text">
+                            <h3>No, I am a candidate</h3>
+                            <p>Submit your CV for AI-powered analysis</p>
+                        </div>
+                    </div>
+                </label>
+            </div>
+
+            <div class="email-input-group hidden" id="emailGroup">
+                <input type="email" name="email" id="emailInput" placeholder="Enter your email address" class="text-input">
+            </div>
+
+            <button type="submit" class="btn-dark" id="continueBtn" disabled>
+                Continue &rarr;
+            </button>
+        </form>
+    </div>
+
+    <script>
+        const cards = document.querySelectorAll('input[name="role"]');
+        const emailGroup = document.getElementById('emailGroup');
+        const emailInput = document.getElementById('emailInput');
+        const btn = document.getElementById('continueBtn');
+
+        cards.forEach(card => {
+            card.addEventListener('change', (e) => {
+                emailGroup.classList.remove('hidden');
+                emailInput.required = true;
+                emailInput.focus();
+                
+                if(e.target.value === 'employee') {
+                    emailInput.placeholder = 'Enter your host email address';
+                } else {
+                    emailInput.placeholder = 'Enter your candidate email address';
+                }
+                checkForm();
+            });
+        });
+
+        emailInput.addEventListener('input', checkForm);
+
+        function checkForm() {
+            btn.disabled = !(document.querySelector('input[name="role"]:checked') && emailInput.value);
+        }
+    </script>
+</body>
+</html>

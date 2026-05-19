@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candidate Portal | Sen & Ray</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray">
+    <nav class="navbar">
+        <div class="nav-brand">SEN & RAY <span>Candidate</span></div>
+        <div class="nav-user">
+            <span>{{ email }}</span>
+            <a href="/logout" class="btn-outline-sm">Logout</a>
+        </div>
+    </nav>
+
+    <div class="dashboard-container max-w-full">
+        <header class="dash-header">
+            <h2>Submit your CV for Analysis</h2>
+            <p>Our AI will screen your CV against Sen & Ray hiring standards.</p>
+        </header>
+
+        <div class="dash-grid" style="grid-template-columns: 350px 1fr;">
+            <div class="dash-card" style="height: fit-content;">
+                <form id="cvForm">
+                    <div class="input-group">
+                        <label>Target Role / Field</label>
+                        <input type="text" id="targetRole" name="target_role" placeholder="e.g. Senior Auditor, Tax Consultant" class="text-input" required>
+                    </div>
+                    <div class="input-group" style="margin-top: 1.5rem;">
+                        <label>Upload Resume (PDF, DOCX)</label>
+                        <input type="file" id="cvFile" name="cv_file" class="text-input" accept=".pdf,.doc,.docx" required>
+                    </div>
+                    <button type="submit" class="btn-dark" id="analyzeBtn" style="margin-top: 1.5rem; width: 100%;">
+                        Run AI Analysis
+                    </button>
+                </form>
+            </div>
+
+            <div class="dash-card hidden" id="resultCard">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3>Analysis Dashboard</h3>
+                    <button class="btn-dark hidden" id="startInterviewBtn" style="background:#16a34a; width:auto; padding:0.5rem 1rem;">Start Proctored AI Interview &rarr;</button>
+                </div>
+                
+                <div class="tabs-container">
+                    <div class="tab-header">
+                        <button class="tab-btn active" onclick="openTab('tab-overview')">Overview & Score</button>
+                        <button class="tab-btn" onclick="openTab('tab-gaps')">Gap Analysis</button>
+                        <button class="tab-btn" onclick="openTab('tab-scope')">Job Scope & News</button>
+                    </div>
+
+                    <!-- Tab 1 -->
+                    <div id="tab-overview" class="tab-content active">
+                        <div class="chart-wrapper">
+                            <canvas id="scoreChart"></canvas>
+                            <div class="chart-score-text" id="scoreText">0%</div>
+                        </div>
+                        <h4 style="color:var(--brand-blue); margin-bottom:0.5rem;">✨ Key Strengths</h4>
+                        <ul id="list-strengths" style="margin-left:1.5rem; color:#cbd5e1; line-height:1.8;"></ul>
+                        
+                        <div style="margin-top:2rem; padding:1rem; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid var(--border);">
+                            <strong style="color:white;">💡 Final Recommendation:</strong> <span id="text-recommendation" style="color:#cbd5e1;"></span>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2 -->
+                    <div id="tab-gaps" class="tab-content">
+                        <h4 style="color:#ef4444; margin-bottom:0.5rem;">⚠️ Identified Gaps</h4>
+                        <ul id="list-gaps" style="margin-left:1.5rem; color:#cbd5e1; line-height:1.8; margin-bottom:2rem;"></ul>
+
+                        <h4 style="color:#eab308; margin-bottom:0.5rem;">📈 Scope for Improvement</h4>
+                        <ul id="list-improvements" style="margin-left:1.5rem; color:#cbd5e1; line-height:1.8;"></ul>
+                    </div>
+
+                    <!-- Tab 3 -->
+                    <div id="tab-scope" class="tab-content">
+                        <h4 style="color:var(--brand-blue); margin-bottom:0.5rem;">💼 Job Scope Prediction</h4>
+                        <p id="text-scope" style="color:#cbd5e1; line-height:1.8; margin-bottom:2rem;"></p>
+
+                        <h4 style="color:white; margin-bottom:0.5rem;">📰 Latest Industry News</h4>
+                        <ul id="list-news" style="margin-left:1.5rem; color:#cbd5e1; line-height:1.8;"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scoreChartInstance = null;
+
+        function openTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        function populateList(elementId, items) {
+            const ul = document.getElementById(elementId);
+            ul.innerHTML = '';
+            if(!items || !items.length) {
+                ul.innerHTML = '<li>None found.</li>';
+                return;
+            }
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.innerText = item;
+                ul.appendChild(li);
+            });
+        }
+
+        document.getElementById('cvForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('analyzeBtn');
+            const resultCard = document.getElementById('resultCard');
+            
+            btn.textContent = "Analyzing...";
+            btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('target_role', document.getElementById('targetRole').value);
+            formData.append('cv_file', document.getElementById('cvFile').files[0]);
+
+            try {
+                const res = await fetch('/api/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                let data;
+                try {
+                    data = await res.json();
+                } catch(e) {
+                    throw new Error("Server returned an invalid response (not JSON).");
+                }
+
+                if (res.ok) {
+                    // Parse the JSON result from the AI
+                    let aiData;
+                    try {
+                        aiData = JSON.parse(data.result);
+                    } catch(err) {
+                        console.error("AI did not return valid JSON:", data.result);
+                        alert("AI output was malformed. Please try again.");
+                        return;
+                    }
+
+                    // Render Tabs Data
+                    document.getElementById('scoreText').innerText = aiData.match_score + '%';
+                    populateList('list-strengths', aiData.key_strengths);
+                    populateList('list-gaps', aiData.gap_analysis);
+                    populateList('list-improvements', aiData.scope_for_improvement);
+                    document.getElementById('text-scope').innerText = aiData.job_scope_prediction;
+                    populateList('list-news', aiData.latest_industry_news);
+                    document.getElementById('text-recommendation').innerText = aiData.recommendation;
+
+                    resultCard.classList.remove('hidden');
+
+                    // Draw Chart.js Donut
+                    const ctx = document.getElementById('scoreChart').getContext('2d');
+                    if (scoreChartInstance) scoreChartInstance.destroy();
+                    
+                    let strokeColor = '#22c55e';
+                    if(aiData.match_score < 50) strokeColor = '#ef4444';
+                    else if (aiData.match_score < 80) strokeColor = '#eab308';
+
+                    scoreChartInstance = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Match Score', 'Gap'],
+                            datasets: [{
+                                data: [aiData.match_score, 100 - aiData.match_score],
+                                backgroundColor: [strokeColor, 'rgba(255, 255, 255, 0.1)'],
+                                borderWidth: 0,
+                                borderRadius: 10
+                            }]
+                        },
+                        options: {
+                            cutout: '80%',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: { enabled: false }
+                            }
+                        }
+                    });
+                    
+                    if (data.submission_id) {
+                        const interviewBtn = document.getElementById('startInterviewBtn');
+                        interviewBtn.classList.remove('hidden');
+                        interviewBtn.onclick = () => {
+                            window.location.href = `/interview?id=${data.submission_id}`;
+                        };
+                    }
+                } else {
+                    alert("Error: " + (data.error || "Unknown error"));
+                }
+            } catch (error) {
+                alert("Request failed: " + error.message);
+            } finally {
+                btn.textContent = "Run AI Analysis";
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

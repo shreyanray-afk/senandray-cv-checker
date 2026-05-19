@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP | Sen & Ray</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <h1 class="welcome-title" style="margin-top:2rem;">Verify Email</h1>
+        <p class="welcome-subtitle">We've sent a 4-digit code to <strong>{{ email }}</strong>.</p>
+        {% if not email_sent %}
+        <div class="demo-notice">
+            <p><strong>Demo Mode:</strong> Your OTP is <code>{{ otp }}</code></p>
+        </div>
+        {% else %}
+        <div class="demo-notice" style="border-left-color: #10b981; background: rgba(16, 185, 129, 0.1); color: #34d399;">
+            <p><strong>Email Sent!</strong> Please check your inbox (and spam folder) for the code.</p>
+        </div>
+        {% endif %}
+        <form action="/verify-otp" method="POST" id="otpForm">
+            <div class="otp-inputs">
+                <input type="text" name="otp1" maxlength="1" class="otp-box" required autofocus>
+                <input type="text" name="otp2" maxlength="1" class="otp-box" required>
+                <input type="text" name="otp3" maxlength="1" class="otp-box" required>
+                <input type="text" name="otp4" maxlength="1" class="otp-box" required>
+            </div>
+            
+            <button type="submit" class="btn-dark" style="margin-top: 2rem;">
+                Verify & Continue
+            </button>
+        </form>
+    </div>
+
+    <script>
+        const inputs = document.querySelectorAll('.otp-box');
+        inputs.forEach((input, index) => {
+            input.addEventListener('input', function() {
+                if(this.value.length === 1 && index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                }
+            });
+            input.addEventListener('keydown', function(e) {
+                if(e.key === 'Backspace' && !this.value && index > 0) {
+                    inputs[index - 1].focus();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
