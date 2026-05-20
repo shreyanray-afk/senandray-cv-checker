@@ -54,7 +54,8 @@ def generate_with_fallback(prompt):
 
 def generate_analysis_with_grounding(prompt):
     # gemini-1.5 models support the legacy SDK's google_search_retrieval grounding tool perfectly
-    models = ['gemini-1.5-flash', 'gemini-1.5-pro']
+    # Use exact names supported by this API key: gemini-flash-latest and gemini-pro-latest
+    models = ['gemini-flash-latest', 'gemini-pro-latest']
     last_err = None
     for m in models:
         try:
