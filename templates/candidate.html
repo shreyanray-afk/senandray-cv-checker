@@ -100,6 +100,12 @@
             event.currentTarget.classList.add('active');
         }
 
+        function formatItemText(text) {
+            let safeText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            const urlRegex = /(https?:\/\/[^\s\)]+)/g; // Excludes trailing parenthesis which might close a link
+            return safeText.replace(urlRegex, '<a href="$1" target="_blank" style="color:var(--brand-blue); text-decoration:underline;">$1</a>');
+        }
+
         function populateList(elementId, items) {
             const ul = document.getElementById(elementId);
             ul.innerHTML = '';
@@ -109,7 +115,7 @@
             }
             items.forEach(item => {
                 const li = document.createElement('li');
-                li.innerText = item;
+                li.innerHTML = formatItemText(item);
                 ul.appendChild(li);
             });
         }

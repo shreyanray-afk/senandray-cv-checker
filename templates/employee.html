@@ -107,6 +107,12 @@
         const closeBtn = document.querySelector('.close-modal');
         const modalBody = document.getElementById('modalBody');
 
+        function formatItemText(text) {
+            let safeText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            const urlRegex = /(https?:\/\/[^\s\)]+)/g;
+            return safeText.replace(urlRegex, '<a href="$1" target="_blank" style="color:var(--brand-blue); text-decoration:underline;">$1</a>');
+        }
+
         function showDetails(id) {
             const raw = document.getElementById('report-' + id).textContent;
             try {
@@ -117,19 +123,19 @@
                     <p><strong>Recommendation:</strong> ${data.recommendation}</p>
                     
                     <h3 style="color:white; margin-top:1.5rem; margin-bottom:0.5rem;">Key Strengths</h3>
-                    <ul style="margin-left:1.5rem; color:#cbd5e1;">${data.key_strengths.map(s => `<li>${s}</li>`).join('')}</ul>
+                    <ul style="margin-left:1.5rem; color:#cbd5e1;">${data.key_strengths.map(s => `<li>${formatItemText(s)}</li>`).join('')}</ul>
                     
                     <h3 style="color:#ef4444; margin-top:1.5rem; margin-bottom:0.5rem;">Gap Analysis</h3>
-                    <ul style="margin-left:1.5rem; color:#cbd5e1;">${data.gap_analysis.map(s => `<li>${s}</li>`).join('')}</ul>
+                    <ul style="margin-left:1.5rem; color:#cbd5e1;">${data.gap_analysis.map(s => `<li>${formatItemText(s)}</li>`).join('')}</ul>
                     
                     <h3 style="color:#eab308; margin-top:1.5rem; margin-bottom:0.5rem;">Scope for Improvement</h3>
-                    <ul style="margin-left:1.5rem; color:#cbd5e1;">${data.scope_for_improvement.map(s => `<li>${s}</li>`).join('')}</ul>
+                    <ul style="margin-left:1.5rem; color:#cbd5e1;">${data.scope_for_improvement.map(s => `<li>${formatItemText(s)}</li>`).join('')}</ul>
                     
                     <h3 style="color:white; margin-top:1.5rem; margin-bottom:0.5rem;">Job Scope Prediction</h3>
-                    <p style="color:#cbd5e1;">${data.job_scope_prediction}</p>
+                    <p style="color:#cbd5e1;">${formatItemText(data.job_scope_prediction)}</p>
                     
                     <h3 style="color:white; margin-top:1.5rem; margin-bottom:0.5rem;">Industry News</h3>
-                    <ul style="margin-left:1.5rem; color:#cbd5e1;">${data.latest_industry_news.map(s => `<li>${s}</li>`).join('')}</ul>
+                    <ul style="margin-left:1.5rem; color:#cbd5e1;">${data.latest_industry_news.map(s => `<li>${formatItemText(s)}</li>`).join('')}</ul>
                 `;
                 modalBody.innerHTML = html;
             } catch(e) {
