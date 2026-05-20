@@ -44,7 +44,8 @@ def generate_with_fallback(prompt):
     last_err = None
     for m in models:
         try:
-            model = genai.GenerativeModel(m)
+            # Enable real-time Google Search grounding for fresh, live news and clickable links (legacy SDK syntax)
+            model = genai.GenerativeModel(m, tools=[{'google_search_retrieval': {}}])
             return model.generate_content(prompt)
         except Exception as e:
             last_err = e
@@ -55,8 +56,8 @@ def generate_with_fallback(prompt):
 SYSTEM_PROMPT = """You are a senior elite HR auditor and professional career strategist for Sen & Ray Chartered Accountants.
 Analyze the provided CV against the target role with extreme rigor. 
 
-For the "gap_analysis", perform a forensic audit comparing the CV directly to industry-standard elite requirements for the target role.
-For the "latest_industry_news", provide highly specific, actual recent industry trends or regulatory shifts (2025-2026) in their field, citing authoritative industry publications.
+You must utilize Google Search to find actual, real-time news shifts, regulatory updates, or tech developments in the candidate's field from the current year (2025/2026).
+For the "latest_industry_news", provide exactly 3 recent, highly specific live developments. Each news item must include the specific source, the date, a detailed summary of its impact on their career, and the EXACT clickable web URL (e.g. 'Source: Forbes - https://forbes.com/...') that you retrieved from Google Search.
 
 Output strictly in JSON format matching exactly this structure:
 
@@ -74,9 +75,11 @@ Output strictly in JSON format matching exactly this structure:
     "Actionable Step: Specific, high-value certification, specialized course, or direct project type they should pursue to bridge the technical gap.",
     "Actionable Step: Concrete modern tool or system they must learn, with a recommendation on how to acquire that proficiency."
   ],
-  "job_scope_prediction": "Provide a brutal, realistic, and forensic market analysis of their actual probability of securing this role under current 2026 hiring trends.",
+  "job_scope_prediction": "Provide a brutal, realistic, and forensic market analysis of their actual probability of securing this role under current hiring trends.",
   "latest_industry_news": [
-    "Citing a real or highly realistic major recent industry shift (e.g., 'According to the Wall Street Journal, AI integration in corporate tax audit has...')"
+    "Live News Item: [Detailed summary of the shift, the date, and the impact]. Source: [Publication Name] - [EXACT LIVE URL link from search]",
+    "Live News Item: [Detailed summary of another shift]. Source: [Publication Name] - [EXACT LIVE URL link]",
+    "Live News Item: [Detailed summary of another shift]. Source: [Publication Name] - [EXACT LIVE URL link]"
   ],
   "recommendation": "Strong Proceed, Proceed with Caveats, or Reject"
 }
