@@ -44,7 +44,20 @@ def generate_with_fallback(prompt):
     last_err = None
     for m in models:
         try:
-            # Enable real-time Google Search grounding for fresh, live news and clickable links (legacy SDK syntax)
+            model = genai.GenerativeModel(m)
+            return model.generate_content(prompt)
+        except Exception as e:
+            last_err = e
+            if "429" not in str(e) and "Quota" not in str(e):
+                raise e
+    raise last_err
+
+def generate_analysis_with_grounding(prompt):
+    # gemini-1.5 models support the legacy SDK's google_search_retrieval grounding tool perfectly
+    models = ['gemini-1.5-flash', 'gemini-1.5-pro']
+    last_err = None
+    for m in models:
+        try:
             model = genai.GenerativeModel(m, tools=[{'google_search_retrieval': {}}])
             return model.generate_content(prompt)
         except Exception as e:
@@ -177,7 +190,7 @@ def analyze_cv():
     try:
         prompt = f"{SYSTEM_PROMPT}\n\n--- TARGET ROLE ---\n{target_role}\n\n--- RESUME/CV ---\n{cv_text}\n"
         
-        response = generate_with_fallback(prompt)
+        response = generate_analysis_with_grounding(prompt)
         analysis = response.text
         
         import json
