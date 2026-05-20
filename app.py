@@ -15,7 +15,17 @@ app = Flask(__name__)
 app.secret_key = "sen_and_ray_super_secret_dev_key"
 
 database.init_db()
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+
+# Configure genai dynamically supporting key rotation and multi-key 429 failover
+def get_rotated_keys():
+    raw_keys = os.environ.get("GEMINI_API_KEY", "")
+    keys = [k.strip() for k in raw_keys.split(",") if k.strip()]
+    if not keys:
+        # Fallback to local .env value if os.environ is empty
+        load_dotenv()
+        raw_keys = os.environ.get("GEMINI_API_KEY", "")
+        keys = [k.strip() for k in raw_keys.split(",") if k.strip()]
+    return keys
 
 EMAIL_USER = os.environ.get("EMAIL_USER", "")
 EMAIL_APP_PASSWORD = os.environ.get("EMAIL_APP_PASSWORD", "")
@@ -40,31 +50,59 @@ def send_otp_email(to_email, otp):
         return False
 
 def generate_with_fallback(prompt):
+    keys = get_rotated_keys()
+    if not keys:
+        raise Exception("No Gemini API keys configured in GEMINI_API_KEY environment variable.")
+    
     models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-1.5-flash']
     last_err = None
-    for m in models:
+    
+    # Try keys sequentially in case of 429 rate limits
+    for key in keys:
         try:
-            model = genai.GenerativeModel(m)
-            return model.generate_content(prompt)
+            genai.configure(api_key=key)
+            for m in models:
+                try:
+                    model = genai.GenerativeModel(m)
+                    return model.generate_content(prompt)
+                except Exception as e:
+                    last_err = e
+                    if "429" not in str(e) and "Quota" not in str(e):
+                        raise e
         except Exception as e:
             last_err = e
-            if "429" not in str(e) and "Quota" not in str(e):
-                raise e
+            if "429" in str(e) or "Quota" in str(e):
+                continue # Try the next key!
+            raise e
     raise last_err
 
 def generate_analysis_with_grounding(prompt):
+    keys = get_rotated_keys()
+    if not keys:
+        raise Exception("No Gemini API keys configured in GEMINI_API_KEY environment variable.")
+        
     # gemini-1.5 models support the legacy SDK's google_search_retrieval grounding tool perfectly
     # Use exact names supported by this API key: gemini-flash-latest and gemini-pro-latest
     models = ['gemini-flash-latest', 'gemini-pro-latest']
     last_err = None
-    for m in models:
+    
+    # Try keys sequentially in case of 429 rate limits
+    for key in keys:
         try:
-            model = genai.GenerativeModel(m, tools=[{'google_search_retrieval': {}}])
-            return model.generate_content(prompt)
+            genai.configure(api_key=key)
+            for m in models:
+                try:
+                    model = genai.GenerativeModel(m, tools=[{'google_search_retrieval': {}}])
+                    return model.generate_content(prompt)
+                except Exception as e:
+                    last_err = e
+                    if "429" not in str(e) and "Quota" not in str(e):
+                        raise e
         except Exception as e:
             last_err = e
-            if "429" not in str(e) and "Quota" not in str(e):
-                raise e
+            if "429" in str(e) or "Quota" in str(e):
+                continue # Try the next key!
+            raise e
     raise last_err
 
 SYSTEM_PROMPT = """You are a senior elite HR auditor and professional career strategist for Sen & Ray Chartered Accountants.
