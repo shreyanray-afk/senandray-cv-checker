@@ -30,7 +30,7 @@ def send_otp_email(to_email, otp):
         msg['From'] = EMAIL_USER
         msg['To'] = to_email
 
-        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=5)
         server.login(EMAIL_USER, EMAIL_APP_PASSWORD)
         server.send_message(msg)
         server.quit()
